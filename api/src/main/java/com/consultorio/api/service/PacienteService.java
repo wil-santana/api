@@ -28,9 +28,15 @@ public class PacienteService {
 
     @Transactional // Garante que a operação no banco seja executada por completo ou desfeita em caso de erro
     public Paciente salvar(Paciente paciente) {
-        // Regra: Verifica se o CPF já existe antes de tentar salvar
-        if (paciente.getId() == null && pacienteRepository.existsByCpf(paciente.getCpf())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Já existe um paciente cadastrado com este CPF.");
+        // Regra: Verifica se o CPF já existe antes de tentar salvar (comparando com ou sem pontuação)
+        if (paciente.getId() == null && paciente.getCpf() != null) {
+            String cpfLimpo = paciente.getCpf().replaceAll("\\D", "");
+            boolean existe = pacienteRepository.existsByCpf(paciente.getCpf()) ||
+                    pacienteRepository.findAll().stream()
+                            .anyMatch(p -> p.getCpf() != null && p.getCpf().replaceAll("\\D", "").equals(cpfLimpo));
+            if (existe) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Já existe um paciente cadastrado com este CPF.");
+            }
         }
         return pacienteRepository.save(paciente);
     }
@@ -45,8 +51,19 @@ public class PacienteService {
         pacienteExistente.setEmail(pacienteAtualizado.getEmail());
         pacienteExistente.setTelefone(pacienteAtualizado.getTelefone());
 
-        // A data de nascimento e o CPF geralmente não mudam,
-        // mas se precisar mudar o CPF, seria necessário validar duplicidade novamente.
+        // Atualização e validação de duplicidade de CPF caso informado
+        if (pacienteAtualizado.getCpf() != null && !pacienteAtualizado.getCpf().trim().isEmpty()) {
+            String cpfNovoLimpo = pacienteAtualizado.getCpf().replaceAll("\\D", "");
+            String cpfAntigoLimpo = pacienteExistente.getCpf() != null ? pacienteExistente.getCpf().replaceAll("\\D", "") : "";
+            if (!cpfNovoLimpo.equals(cpfAntigoLimpo)) {
+                boolean existeOutro = pacienteRepository.findAll().stream()
+                        .anyMatch(p -> !p.getId().equals(id) && p.getCpf() != null && p.getCpf().replaceAll("\\D", "").equals(cpfNovoLimpo));
+                if (existeOutro) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Já existe outro paciente cadastrado com este CPF.");
+                }
+                pacienteExistente.setCpf(pacienteAtualizado.getCpf());
+            }
+        }
 
         return pacienteRepository.save(pacienteExistente);
     }

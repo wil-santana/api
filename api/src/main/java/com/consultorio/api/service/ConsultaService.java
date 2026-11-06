@@ -43,16 +43,34 @@ public class ConsultaService {
         // 3. Garante que o médico existe (se não existir, o service lança erro 404)
         Medico medicoReal = medicoService.buscarPorId(consulta.getMedico().getId());
 
-        // 4. Regra de Negócio: Evitar choque de horários para o mesmo médico
-        if (consultaRepository.existsByMedicoIdAndDataHorario(medicoReal.getId(), consulta.getDataHorario())) {
+        // 4. Regra de Negócio: Evitar choque de horários para o mesmo médico (ignora consultas canceladas)
+        if (consultaRepository.existsByMedicoIdAndDataHorarioAndStatusNot(medicoReal.getId(), consulta.getDataHorario(), "CANCELADA")) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "O médico já possui uma consulta agendada para este horário.");
         }
 
         // 5. Preenche os dados validados e define o status inicial
         consulta.setPaciente(pacienteReal);
         consulta.setMedico(medicoReal);
-        consulta.setStatus("AGENDADA"); // Protege contra o frontend mandar um status "REALIZADA" na hora de criar
+        consulta.setStatus("AGENDADA");
 
+        return consultaRepository.save(consulta);
+    }
+
+    @Transactional
+    public Consulta reagendar(Long id, LocalDateTime novoDataHorario) {
+        Consulta consulta = buscarPorId(id);
+
+        if (novoDataHorario.isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não é possível reagendar para uma data no passado.");
+        }
+
+        // Verifica se o médico já tem outra consulta ativa nesse novo horário
+        if (consultaRepository.existsByMedicoIdAndDataHorarioAndStatusNot(consulta.getMedico().getId(), novoDataHorario, "CANCELADA")) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "O médico já possui uma consulta agendada para este horário.");
+        }
+
+        consulta.setDataHorario(novoDataHorario);
+        consulta.setStatus("AGENDADA");
         return consultaRepository.save(consulta);
     }
 
@@ -60,12 +78,11 @@ public class ConsultaService {
     public void cancelar(Long id) {
         Consulta consulta = buscarPorId(id);
 
-        if (consulta.getStatus().equals("CANCELADA")) {
+        if ("CANCELADA".equalsIgnoreCase(consulta.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Esta consulta já encontra-se cancelada.");
         }
 
-        // Em vez de deletar a linha do banco, nós atualizamos o status.
-        // Isso é chamado de "Soft Delete" ou Cancelamento Lógico.
+        // Cancelamento Lógico: muda o status para CANCELADA e libera o horário no banco
         consulta.setStatus("CANCELADA");
         consultaRepository.save(consulta);
     }

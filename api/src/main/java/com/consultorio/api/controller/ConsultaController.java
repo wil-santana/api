@@ -7,7 +7,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/consulta")
@@ -32,7 +34,14 @@ public class ConsultaController {
         return ResponseEntity.ok(consultaService.buscarPorId(id));
     }
 
-    // Usamos DELETE na URL, mas por baixo dos panos o Service apenas muda o status para CANCELADA
+    @PutMapping("/{id}/reagendar")
+    public ResponseEntity<Consulta> reagendar(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        LocalDateTime novaData = LocalDateTime.parse(payload.get("dataHorario"));
+        Consulta consultaReagendada = consultaService.reagendar(id, novaData);
+        return ResponseEntity.ok(consultaReagendada);
+    }
+
+    // Cancelamento lógico: muda o status para CANCELADA e libera o horário no banco
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> cancelar(@PathVariable Long id) {
         consultaService.cancelar(id);

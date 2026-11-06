@@ -51,16 +51,24 @@ public class MedicoService {
         // Busca o médico antigo
         Medico medicoExistente = buscarPorId(id);
 
-        // Busca e valida a nova especialidade (caso ele tenha mudado de especialidade)
-        Especialidade novaEspecialidade = especialidadeService.buscarPorId(medicoAtualizado.getEspecialidade().getId());
+        // Atualiza e valida a nova especialidade (caso ele tenha mudado de especialidade)
+        if (medicoAtualizado.getEspecialidade() != null && medicoAtualizado.getEspecialidade().getId() != null) {
+            Especialidade novaEspecialidade = especialidadeService.buscarPorId(medicoAtualizado.getEspecialidade().getId());
+            medicoExistente.setEspecialidade(novaEspecialidade);
+        }
 
-        // Atualiza os dados permitidos
+        // Atualiza os dados cadastrais
         medicoExistente.setNome(medicoAtualizado.getNome());
         medicoExistente.setTelefone(medicoAtualizado.getTelefone());
         medicoExistente.setEmail(medicoAtualizado.getEmail());
-        medicoExistente.setEspecialidade(novaEspecialidade);
 
-        // O CRM é como um CPF, não deve ser alterado. Por isso não colocamos o setCrm() aqui.
+        // Atualiza o CRM (com validação para evitar duplicação com outro médico)
+        if (medicoAtualizado.getCrm() != null && !medicoAtualizado.getCrm().trim().equalsIgnoreCase(medicoExistente.getCrm())) {
+            if (medicoRepository.existsByCrm(medicoAtualizado.getCrm().trim())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Já existe outro médico cadastrado com este CRM.");
+            }
+            medicoExistente.setCrm(medicoAtualizado.getCrm().trim());
+        }
 
         return medicoRepository.save(medicoExistente);
     }

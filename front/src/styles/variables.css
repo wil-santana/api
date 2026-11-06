@@ -1,0 +1,40 @@
+:root {
+  /* Regra Cromática 60-30-10 & WCAG 2.1 AAA */
+  --primary: #0F52BA;          /* 10% Ação Principal (Azul Médico Safira - contraste 8.5:1) */
+  --primary-dark: #0A3A85;     /* Hover/Ativo primário */
+  --primary-light: #EBF3FF;    /* Fundo suave de destaque */
+  
+  --secondary: #16A34A;        /* Confirmação Segura / Sucesso (Verde Saúde) */
+  --secondary-dark: #15803D;   /* Hover secundário */
+
+  --text-main: #0F172A;        /* 30% Estrutura & Leitura (Slate 900 - contraste 14.2:1) */
+  --text-muted: #334155;       /* Textos secundários de alto contraste */
+  
+  --bg-neutral: #F8FAFC;       /* 60% Superfície Neutra (Descanso visual) */
+  --surface-white: #FFFFFF;    /* Cartões e superfícies táteis */
+  
+  --border-strong: #94A3B8;    /* Bordas nítidas para delimitação de campos */
+  --border-subtle: #E2E8F0;    /* Divisórias suaves */
+  --focus-ring: #0284C7;       /* Anel de foco WCAG 2.4.7 */
+  
+  --callout-bg: #FEF3C7;       /* Fundo de apoio telefônico 0800 */
+  --callout-border: #F59E0B;   /* Borda de apoio */
+  --callout-text: #78350F;     /* Texto de apoio com alto contraste */
+
+  /* Ergonomia Motora (Lei de Fitts) */
+  --btn-min-height: 56px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  
+  /* Escala Tipográfica Padrão */
+  --font-scale: 1;
+}
+
+/* Modo Sênior (Fontes Ampliadas +20% e bordas reforçadas) */
+body.senior-mode {
+  --font-scale: 1.2;
+  --text-muted: #1E293B;
+  --border-strong: #64748B;
+  --btn-min-height: 62px;
+}
