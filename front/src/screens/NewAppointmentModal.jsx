@@ -3,6 +3,7 @@ import Button from '../components/common/Button';
 import TimeChips from '../components/common/TimeChips';
 import MiniCalendar from '../components/common/MiniCalendar';
 import {
+  listarEspecialidades,
   listarMedicos,
   agendarNovaConsulta,
   obterHorariosOcupados,
@@ -11,10 +12,23 @@ import {
   verificarBloqueioData
 } from '../services/api';
 
+const dayFullName = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+
+function getInitialDateString() {
+  const d = new Date();
+  const diaSemana = dayFullName[d.getDay()];
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const ano = d.getFullYear();
+  return `${diaSemana}, ${dia}/${mes}/${ano}`;
+}
+
 export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onAppointmentSuccess }) {
+  const [especialidades, setEspecialidades] = useState([]);
+  const [selectedEspecialidadeId, setSelectedEspecialidadeId] = useState('');
   const [medicos, setMedicos] = useState([]);
   const [selectedMedicoId, setSelectedMedicoId] = useState('');
-  const [selectedDate, setSelectedDate] = useState('Quinta-feira, 15/10/2026');
+  const [selectedDate, setSelectedDate] = useState(getInitialDateString);
   const [selectedTurno, setSelectedTurno] = useState('manha'); // 'manha' | 'tarde'
   const [selectedTime, setSelectedTime] = useState('08:00');
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -22,23 +36,80 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
   const [occupiedTimes, setOccupiedTimes] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Carrega médicos cadastrados no backend
+  // Carrega especialidades e médicos cadastrados no backend
   useEffect(() => {
     if (!isOpen) return;
-    listarMedicos().then((lista) => {
-      setMedicos(lista);
-      if (lista.length > 0 && !selectedMedicoId) {
-        setSelectedMedicoId(String(lista[0].id));
+
+    Promise.all([listarEspecialidades(), listarMedicos()]).then(([espList, medList]) => {
+      const espArr = espList || [];
+      const medArr = medList || [];
+      setEspecialidades(espArr);
+      setMedicos(medArr);
+
+      let currentEspId = selectedEspecialidadeId;
+      if (!currentEspId && espArr.length > 0) {
+        currentEspId = String(espArr[0].id);
+        setSelectedEspecialidadeId(currentEspId);
+      }
+
+      // Filtra médicos da especialidade selecionada
+      const medicosDaEsp = medArr.filter(
+        (m) =>
+          String(m.especialidade?.id) === String(currentEspId) ||
+          m.especialidade?.nome?.toLowerCase() ===
+            espArr.find((e) => String(e.id) === String(currentEspId))?.nome?.toLowerCase()
+      );
+
+      if (medicosDaEsp.length > 0) {
+        setSelectedMedicoId(String(medicosDaEsp[0].id));
+      } else if (medArr.length > 0) {
+        setSelectedMedicoId(String(medArr[0].id));
       }
     });
   }, [isOpen]);
 
-  // Extrai data ISO "YYYY-MM-DD"
-  const match = selectedDate.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  const dataIso = match ? `${match[3]}-${match[2]}-${match[1]}` : '2026-10-15';
+  // Ao trocar a especialidade, atualiza o médico selecionado
+  const handleEspecialidadeChange = (espId) => {
+    setSelectedEspecialidadeId(espId);
 
-  // Verifica se o proprietário bloqueou este dia (dias fixos ou exceções)
+    const medicosDaEsp = medicos.filter(
+      (m) =>
+        String(m.especialidade?.id) === String(espId) ||
+        m.especialidade?.nome?.toLowerCase() ===
+          especialidades.find((e) => String(e.id) === String(espId))?.nome?.toLowerCase()
+    );
+
+    if (medicosDaEsp.length > 0) {
+      setSelectedMedicoId(String(medicosDaEsp[0].id));
+    } else {
+      setSelectedMedicoId('');
+    }
+  };
+
+  // Médicos filtrados para exibição
+  const medicosFiltrados = medicos.filter(
+    (m) =>
+      String(m.especialidade?.id) === String(selectedEspecialidadeId) ||
+      m.especialidade?.nome?.toLowerCase() ===
+        especialidades.find((e) => String(e.id) === String(selectedEspecialidadeId))?.nome?.toLowerCase()
+  );
+
+  // Extrai data ISO "YYYY-MM-DD" e valida se é data de hoje
+  const match = selectedDate.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  const now = new Date();
+  const hojeIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const dataIso = match ? `${match[3]}-${match[2]}-${match[1]}` : hojeIso;
+
+  const isToday = dataIso === hojeIso;
+  const currentHourMinutes = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  // Verifica bloqueio de clínicas (domingos, feriados, etc.)
   const statusBloqueio = verificarBloqueioData(dataIso);
+
+  const timeSlots = selectedTurno === 'manha' ? SLOTS_MANHA : SLOTS_TARDE;
+
+  // Horários passados no dia de hoje
+  const pastTimes = isToday ? timeSlots.filter((slot) => slot <= currentHourMinutes) : [];
 
   // Atualiza horários ocupados do médico selecionado para a data escolhida
   useEffect(() => {
@@ -47,24 +118,29 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
     obterHorariosOcupados(selectedMedicoId, dataIso).then((ocupados) => {
       setOccupiedTimes(ocupados);
 
-      // Slots do turno atual
       const slotsAtuais = selectedTurno === 'manha' ? SLOTS_MANHA : SLOTS_TARDE;
       const horaSimples = selectedTime.substring(0, 5);
 
-      // Se o horário selecionado estiver ocupado ou não pertencer ao turno, seleciona o primeiro disponível
-      if (ocupados.includes(horaSimples) || !slotsAtuais.includes(horaSimples)) {
-        const primeiroLivre = slotsAtuais.find((s) => !ocupados.includes(s));
+      const isUnavailable = (s) => {
+        if (ocupados.includes(s)) return true;
+        if (isToday && s <= currentHourMinutes) return true;
+        return false;
+      };
+
+      if (isUnavailable(horaSimples) || !slotsAtuais.includes(horaSimples)) {
+        const primeiroLivre = slotsAtuais.find((s) => !isUnavailable(s));
         if (primeiroLivre) {
           setSelectedTime(primeiroLivre);
+        } else {
+          setSelectedTime('');
         }
       }
     });
-  }, [selectedMedicoId, dataIso, selectedTurno, isOpen]);
+  }, [selectedMedicoId, dataIso, selectedTurno, isOpen, isToday, currentHourMinutes]);
 
   if (!isOpen) return null;
 
   const medicoSelecionado = medicos.find((m) => String(m.id) === String(selectedMedicoId));
-  const timeSlots = selectedTurno === 'manha' ? SLOTS_MANHA : SLOTS_TARDE;
 
   const handlePickDate = (fullDate) => {
     setSelectedDate(fullDate);
@@ -77,18 +153,33 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
       return;
     }
 
+    if (dataIso < hojeIso) {
+      alert('⚠️ Não é possível agendar em datas passadas. Por favor, escolha uma data futura.');
+      return;
+    }
+
+    if (isToday && selectedTime <= currentHourMinutes) {
+      alert('⚠️ Este horário já passou no dia de hoje. Por favor, escolha um horário futuro.');
+      return;
+    }
+
     if (statusBloqueio.meioPeriodo && selectedTurno === 'tarde') {
       alert('⚠️ Aos sábados a clínica funciona apenas no turno da manhã (até as 13:00).');
       return;
     }
 
+    if (!selectedEspecialidadeId) {
+      alert('Por favor, selecione uma especialidade.');
+      return;
+    }
+
     if (!selectedMedicoId) {
-      alert('Por favor, selecione um médico.');
+      alert('Por favor, selecione um médico disponível para a especialidade escolhida.');
       return;
     }
 
     if (!selectedTime) {
-      alert('Por favor, escolha um horário disponível.');
+      alert('Por favor, escolha um horário livre disponível.');
       return;
     }
 
@@ -199,11 +290,51 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
               color: 'var(--text-muted)'
             }}
           >
-            Escolha o especialista, o dia e o turno desejado.
+            Escolha a especialidade, o médico, o dia e o turno desejado.
           </p>
         </div>
 
-        {/* 1. Escolha do Médico */}
+        {/* 1. Escolha da Especialidade */}
+        <div>
+          <label
+            htmlFor="select-especialidade"
+            style={{
+              fontSize: 'calc(16px * var(--font-scale))',
+              fontWeight: '800',
+              color: 'var(--text-main)',
+              display: 'block',
+              marginBottom: '6px'
+            }}
+          >
+            1. Escolha a Especialidade *
+          </label>
+          <select
+            id="select-especialidade"
+            value={selectedEspecialidadeId}
+            onChange={(e) => handleEspecialidadeChange(e.target.value)}
+            style={{
+              width: '100%',
+              minHeight: '54px',
+              backgroundColor: '#FFFFFF',
+              border: '2px solid var(--border-strong)',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              fontSize: 'calc(16px * var(--font-scale))',
+              fontWeight: '700',
+              color: 'var(--text-main)',
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            {especialidades.map((esp) => (
+              <option key={esp.id} value={esp.id}>
+                🩺 {esp.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 2. Escolha do Médico */}
         <div>
           <label
             htmlFor="select-medico"
@@ -215,7 +346,7 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
               marginBottom: '6px'
             }}
           >
-            1. Escolha o Médico / Especialidade *
+            2. Escolha o Médico *
           </label>
           <select
             id="select-medico"
@@ -235,15 +366,19 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
               cursor: 'pointer'
             }}
           >
-            {medicos.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nome} — {m.especialidade?.nome || 'Especialista'} (CRM: {m.crm || 'N/A'})
-              </option>
-            ))}
+            {medicosFiltrados.length === 0 ? (
+              <option value="">Nenhum médico disponível para esta especialidade</option>
+            ) : (
+              medicosFiltrados.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nome} (CRM: {m.crm || 'N/A'})
+                </option>
+              ))
+            )}
           </select>
         </div>
 
-        {/* 2. Escolha do Dia */}
+        {/* 3. Escolha do Dia */}
         <div>
           <label
             htmlFor="agend-data"
@@ -255,7 +390,7 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
               marginBottom: '6px'
             }}
           >
-            2. Escolha o Dia da Consulta *
+            3. Escolha o Dia da Consulta *
           </label>
           <div
             style={{ position: 'relative', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
@@ -328,7 +463,7 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
           />
         </div>
 
-        {/* 3. Escolha do Turno e Horário Livre */}
+        {/* 4. Escolha do Turno e Horário Livre */}
         {!statusBloqueio.bloqueado && (
           <div>
             <label
@@ -340,7 +475,7 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
                 marginBottom: '8px'
               }}
             >
-              3. Escolha o Turno e Horário Livre *
+              4. Escolha o Turno e Horário Livre *
             </label>
 
             {/* Alternância de Turno: Manhã e Tarde */}
@@ -356,65 +491,103 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
                 onClick={() => setSelectedTurno('manha')}
                 style={{
                   flex: 1,
-                  padding: '12px 8px',
+                  minHeight: '48px',
+                  backgroundColor: selectedTurno === 'manha' ? '#0F52BA' : '#F1F5F9',
+                  color: selectedTurno === 'manha' ? '#FFFFFF' : '#0F172A',
+                  border: selectedTurno === 'manha' ? '2px solid #0A3A85' : '1.5px solid var(--border-strong)',
                   borderRadius: '10px',
                   fontWeight: '800',
-                  fontSize: 'calc(15px * var(--font-scale))',
-                  cursor: 'pointer',
-                  border: selectedTurno === 'manha' ? '2px solid var(--primary-dark)' : '1.5px solid var(--border-strong)',
-                  backgroundColor: selectedTurno === 'manha' ? 'var(--primary)' : '#F8FAFC',
-                  color: selectedTurno === 'manha' ? '#FFFFFF' : 'var(--text-main)',
-                  boxShadow: selectedTurno === 'manha' ? '0 4px 10px rgba(15,82,186,0.3)' : 'none'
+                  fontSize: 'calc(14px * var(--font-scale))',
+                  cursor: 'pointer'
                 }}
               >
-                🌅 Manhã (07h às 12h)
+                ☀️ Turno Manhã (07h às 12h)
               </button>
 
               <button
                 type="button"
                 onClick={() => setSelectedTurno('tarde')}
                 disabled={statusBloqueio.meioPeriodo}
-                title={statusBloqueio.meioPeriodo ? 'Fechado à tarde aos sábados' : undefined}
+                title={statusBloqueio.meioPeriodo ? 'Aos sábados a clínica funciona apenas pela manhã' : undefined}
                 style={{
                   flex: 1,
-                  padding: '12px 8px',
+                  minHeight: '48px',
+                  backgroundColor:
+                    statusBloqueio.meioPeriodo
+                      ? '#E2E8F0'
+                      : selectedTurno === 'tarde'
+                      ? '#0F52BA'
+                      : '#F1F5F9',
+                  color: statusBloqueio.meioPeriodo
+                    ? '#94A3B8'
+                    : selectedTurno === 'tarde'
+                    ? '#FFFFFF'
+                    : '#0F172A',
+                  border:
+                    statusBloqueio.meioPeriodo
+                      ? '1.5px solid #CBD5E1'
+                      : selectedTurno === 'tarde'
+                      ? '2px solid #0A3A85'
+                      : '1.5px solid var(--border-strong)',
                   borderRadius: '10px',
                   fontWeight: '800',
-                  fontSize: 'calc(15px * var(--font-scale))',
+                  fontSize: 'calc(14px * var(--font-scale))',
                   cursor: statusBloqueio.meioPeriodo ? 'not-allowed' : 'pointer',
-                  opacity: statusBloqueio.meioPeriodo ? 0.5 : 1,
-                  border: selectedTurno === 'tarde' ? '2px solid var(--primary-dark)' : '1.5px solid var(--border-strong)',
-                  backgroundColor: selectedTurno === 'tarde' ? 'var(--primary)' : '#F8FAFC',
-                  color: selectedTurno === 'tarde' ? '#FFFFFF' : 'var(--text-main)',
-                  boxShadow: selectedTurno === 'tarde' ? '0 4px 10px rgba(15,82,186,0.3)' : 'none'
+                  opacity: statusBloqueio.meioPeriodo ? 0.6 : 1
                 }}
               >
-                🌇 Tarde (13:20 às 18h)
+                ⛅ Turno Tarde (13h às 18h)
               </button>
             </div>
 
-            {/* Renderização dos horários (os ocupados simplesmente NÃO aparecem) */}
             <TimeChips
               options={timeSlots}
               selected={selectedTime}
-              onSelect={(time) => setSelectedTime(time)}
+              onSelect={setSelectedTime}
               occupiedTimes={occupiedTimes}
-              filterOccupied={true}
+              pastTimes={pastTimes}
             />
           </div>
         )}
 
-        {/* Botões de Ação */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+        {/* Resumo da Escolha */}
+        <div
+          style={{
+            backgroundColor: '#F8FAFC',
+            border: '1.5px solid var(--border-subtle)',
+            borderRadius: '12px',
+            padding: '12px 14px',
+            fontSize: 'calc(14px * var(--font-scale))',
+            color: 'var(--text-muted)'
+          }}
+        >
+          <div style={{ fontWeight: '800', color: 'var(--text-main)', marginBottom: '4px' }}>
+            📋 Resumo do Agendamento:
+          </div>
+          <div>
+            <strong>Especialidade:</strong>{' '}
+            {especialidades.find((e) => String(e.id) === String(selectedEspecialidadeId))?.nome || 'Não definida'}
+          </div>
+          <div>
+            <strong>Médico:</strong> {medicoSelecionado?.nome || 'Não selecionado'} (
+            {medicoSelecionado?.especialidade?.nome || 'Geral'})
+          </div>
+          <div>
+            <strong>Data &amp; Horário:</strong> {selectedDate} às {selectedTime || '--:--'}
+          </div>
+        </div>
+
+        {/* Botões de Ação na Zona do Polegar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
           <Button
-            variant="success"
+            variant="primary"
             onClick={handleConfirm}
-            disabled={loading || statusBloqueio.bloqueado}
+            disabled={loading || statusBloqueio.bloqueado || !selectedTime || !selectedMedicoId}
           >
-            {loading ? '⏳ Gravando no Banco...' : '✓ CONFIRMAR AGENDAMENTO'}
+            {loading ? '⏳ Confirmando...' : '✓ CONFIRMAR AGENDAMENTO'}
           </Button>
           <Button variant="neutral" onClick={onClose}>
-            Cancelar e Voltar ao Perfil
+            Cancelar e Voltar
           </Button>
         </div>
       </div>

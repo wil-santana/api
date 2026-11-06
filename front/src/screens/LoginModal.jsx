@@ -132,19 +132,19 @@ export default function LoginModal({ isOpen, onClose, onOpenRegister, onLoginSuc
               color: 'var(--text-muted)'
             }}
           >
-            Acesse seus agendamentos ou o painel administrativo.
+            Acesse seus agendamentos.
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
           <InputText
             id="login-user"
-            label="Seu CPF, E-mail ou Usuário"
+            label="Seu CPF ou Usuário"
             required
             value={identifier}
             onChange={handleIdentifierChange}
             placeholder="Ex: 123.456.789-00 ou admin"
-            hint="Dica: Pacientes digitam o CPF. Gestores digitam 'admin'."
+            //hint="Dica: Pacientes digitam o CPF. Gestores digitam 'admin'."
           />
 
           <PasswordInput

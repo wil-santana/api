@@ -5,34 +5,12 @@ export default function TimeChips({
   selected,
   onSelect,
   occupiedTimes = [],
-  filterOccupied = true
+  pastTimes = []
 }) {
-  // Se filterOccupied for true, os horários ocupados NÃO aparecem na tela (regra pedida)
-  const availableSlots = filterOccupied
-    ? options.filter((time) => {
-        const horaSimples = time.substring(0, 5);
-        return !occupiedTimes.includes(horaSimples);
-      })
-    : options;
-
-  if (availableSlots.length === 0) {
-    return (
-      <div
-        style={{
-          padding: '16px',
-          backgroundColor: '#F8FAFC',
-          border: '1.5px dashed #CBD5E1',
-          borderRadius: '12px',
-          textAlign: 'center',
-          color: '#64748B',
-          fontSize: 'calc(14px * var(--font-scale))',
-          fontWeight: '700'
-        }}
-      >
-        ❌ Nenhum horário disponível neste turno para a data selecionada.
-      </div>
-    );
-  }
+  const isSlotDisabled = (time) => {
+    const horaSimples = time.substring(0, 5);
+    return occupiedTimes.includes(horaSimples) || pastTimes.includes(horaSimples);
+  };
 
   return (
     <div
@@ -42,25 +20,44 @@ export default function TimeChips({
         gap: '8px'
       }}
     >
-      {availableSlots.map((time) => {
+      {options.map((time) => {
         const isSelected = selected === time || selected?.startsWith(time);
+        const disabled = isSlotDisabled(time);
+        const horaSimples = time.substring(0, 5);
+        const isOccupied = occupiedTimes.includes(horaSimples);
+        const isPast = pastTimes.includes(horaSimples);
 
         return (
           <button
             key={time}
             type="button"
-            onClick={() => onSelect(time)}
+            disabled={disabled}
+            onClick={() => !disabled && onSelect(time)}
             aria-pressed={isSelected}
+            title={isOccupied ? 'Horário já reservado' : isPast ? 'Horário já passado' : undefined}
             style={{
-              backgroundColor: isSelected ? 'var(--primary)' : '#FFFFFF',
-              color: isSelected ? '#FFFFFF' : 'var(--text-main)',
-              border: isSelected ? '2px solid var(--primary-dark)' : '1.5px solid var(--border-strong)',
+              backgroundColor: isSelected
+                ? 'var(--primary)'
+                : disabled
+                ? '#F1F5F9'
+                : '#FFFFFF',
+              color: isSelected
+                ? '#FFFFFF'
+                : disabled
+                ? '#94A3B8'
+                : 'var(--text-main)',
+              border: isSelected
+                ? '2px solid var(--primary-dark)'
+                : disabled
+                ? '1.5px solid #E2E8F0'
+                : '1.5px solid var(--border-strong)',
               borderRadius: '10px',
               padding: '10px 4px',
               fontSize: 'calc(15px * var(--font-scale))',
               fontWeight: '800',
               textAlign: 'center',
-              cursor: 'pointer',
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              opacity: disabled ? 0.45 : 1,
               minHeight: '46px',
               display: 'flex',
               alignItems: 'center',

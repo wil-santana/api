@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import Header from './components/layout/Header';
 import WelcomeScreen from './screens/WelcomeScreen';
 import LoginModal from './screens/LoginModal';
 import RegisterModal from './screens/RegisterModal';
@@ -8,8 +7,11 @@ import NewAppointmentModal from './screens/NewAppointmentModal';
 import ProfileScreen from './screens/ProfileScreen';
 import AdminScreen from './screens/AdminScreen';
 import DoctorLogo from './components/common/DoctorLogo';
+import { useSenior } from './context/SeniorContext';
 
 export default function App() {
+  const { seniorMode, toggleSeniorMode } = useSenior();
+
   // Usuário autenticado
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -58,13 +60,10 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* Cabeçalho Oficial do Sistema com Logotipo e Modo Sênior */}
-      <Header />
-
       {/* Área Central Responsiva (Mobile-First) */}
       <main style={{ flex: 1, padding: '16px' }}>
         <div className="viewport-container">
-          {/* Barra de Status do Smartphone */}
+          {/* Barra Superior / Status do Aplicativo */}
           <div
             style={{
               display: 'flex',
@@ -82,21 +81,28 @@ export default function App() {
               <DoctorLogo size={28} />
               <span style={{ fontWeight: '800', color: 'var(--primary)' }}>Consulta Fácil</span>
             </div>
-            <a
-              href="tel:08007008000"
+            <button
+              type="button"
+              onClick={toggleSeniorMode}
+              aria-pressed={seniorMode}
+              title={seniorMode ? 'Modo Sênior Ativado (Fontes +20%)' : 'Modo Sênior (Fontes Ampliadas)'}
               style={{
-                backgroundColor: '#F1F5F9',
-                color: '#0F172A',
-                border: '1.5px solid var(--border-strong)',
+                backgroundColor: seniorMode ? '#0284C7' : '#F1F5F9',
+                color: seniorMode ? '#FFFFFF' : '#0F172A',
+                border: seniorMode ? '2px solid #BAE6FD' : '1.5px solid var(--border-strong)',
                 padding: '6px 12px',
                 borderRadius: '8px',
                 fontWeight: '700',
                 fontSize: 'calc(13px * var(--font-scale))',
-                textDecoration: 'none'
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: seniorMode ? '0 0 10px rgba(56, 189, 248, 0.4)' : 'none'
               }}
             >
-              📞 0800
-            </a>
+              {seniorMode ? '✓ Modo Sênior' : '🔍 Modo Sênior'}
+            </button>
           </div>
 
           {/* Fluxo Orgânico: Se não estiver logado, exibe Home */}

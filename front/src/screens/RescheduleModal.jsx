@@ -10,8 +10,19 @@ import {
   verificarBloqueioData
 } from '../services/api';
 
+const dayFullName = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+
+function getInitialDateString() {
+  const d = new Date();
+  const diaSemana = dayFullName[d.getDay()];
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const ano = d.getFullYear();
+  return `${diaSemana}, ${dia}/${mes}/${ano}`;
+}
+
 export default function RescheduleModal({ isOpen, onClose, appointment, onRescheduleSuccess }) {
-  const [selectedDate, setSelectedDate] = useState('Quinta-feira, 15/10/2026');
+  const [selectedDate, setSelectedDate] = useState(getInitialDateString);
   const [selectedTurno, setSelectedTurno] = useState('manha');
   const [selectedTime, setSelectedTime] = useState('08:00');
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -28,17 +39,25 @@ export default function RescheduleModal({ isOpen, onClose, appointment, onResche
   // Formata data e hora atual da consulta
   const dataAtualFormatada = appointment?.dataHorario
     ? new Date(appointment.dataHorario).toLocaleDateString('pt-BR')
-    : '15/10/2026';
+    : 'Data a definir';
   const horaAtualFormatada = appointment?.dataHorario
     ? appointment.dataHorario.substring(11, 16) + 'h'
-    : '13:30h';
+    : '--:--h';
 
   // Extrai data ISO "YYYY-MM-DD"
   const match = selectedDate.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  const dataIso = match ? `${match[3]}-${match[2]}-${match[1]}` : '2026-10-15';
+  const now = new Date();
+  const hojeIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const dataIso = match ? `${match[3]}-${match[2]}-${match[1]}` : hojeIso;
+
+  const isToday = dataIso === hojeIso;
+  const currentHourMinutes = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
   // Verifica bloqueio de data pelo proprietário
   const statusBloqueio = verificarBloqueioData(dataIso);
+
+  const timeSlots = selectedTurno === 'manha' ? SLOTS_MANHA : SLOTS_TARDE;
+  const pastTimes = isToday ? timeSlots.filter((slot) => slot <= currentHourMinutes) : [];
 
   // Ao trocar a data/turno, busca no banco quais horários já estão ocupados
   useEffect(() => {
@@ -50,16 +69,20 @@ export default function RescheduleModal({ isOpen, onClose, appointment, onResche
       const slotsAtuais = selectedTurno === 'manha' ? SLOTS_MANHA : SLOTS_TARDE;
       const horaSimples = selectedTime.substring(0, 5);
 
-      if (ocupados.includes(horaSimples) || !slotsAtuais.includes(horaSimples)) {
-        const primeiroLivre = slotsAtuais.find((s) => !ocupados.includes(s));
+      const isUnavailable = (s) => {
+        if (ocupados.includes(s)) return true;
+        if (isToday && s <= currentHourMinutes) return true;
+        return false;
+      };
+
+      if (isUnavailable(horaSimples) || !slotsAtuais.includes(horaSimples)) {
+        const primeiroLivre = slotsAtuais.find((s) => !isUnavailable(s));
         if (primeiroLivre) setSelectedTime(primeiroLivre);
       }
     });
-  }, [selectedDate, selectedTurno, isOpen, medicoId, dataIso]);
+  }, [selectedDate, selectedTurno, isOpen, medicoId, dataIso, isToday, currentHourMinutes]);
 
   if (!isOpen) return null;
-
-  const timeSlots = selectedTurno === 'manha' ? SLOTS_MANHA : SLOTS_TARDE;
 
   const handlePickDate = (fullDate) => {
     setSelectedDate(fullDate);
@@ -69,6 +92,16 @@ export default function RescheduleModal({ isOpen, onClose, appointment, onResche
   const handleConfirm = async () => {
     if (statusBloqueio.bloqueado) {
       alert(`⚠️ Não é possível reagendar nesta data.\nMotivo: ${statusBloqueio.motivo}`);
+      return;
+    }
+
+    if (dataIso < hojeIso) {
+      alert('⚠️ Não é possível agendar em datas passadas. Por favor, escolha uma data futura.');
+      return;
+    }
+
+    if (isToday && selectedTime <= currentHourMinutes) {
+      alert('⚠️ Este horário já passou no dia de hoje. Por favor, escolha um horário futuro.');
       return;
     }
 
@@ -133,8 +166,8 @@ export default function RescheduleModal({ isOpen, onClose, appointment, onResche
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span
             style={{
-              backgroundColor: '#FEF3C7',
-              color: '#B45309',
+              backgroundColor: '#EFF6FF',
+              color: '#1D4ED8',
               padding: '4px 10px',
               borderRadius: '6px',
               fontSize: 'calc(12px * var(--font-scale))',
@@ -142,12 +175,12 @@ export default function RescheduleModal({ isOpen, onClose, appointment, onResche
               textTransform: 'uppercase'
             }}
           >
-            Mudança de Horário
+            Reagendamento Guiado
           </span>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fechar janela e voltar"
+            aria-label="Fechar janela e manter consulta como está"
             style={{
               width: '44px',
               height: '44px',
@@ -175,15 +208,15 @@ export default function RescheduleModal({ isOpen, onClose, appointment, onResche
               color: 'var(--text-main)'
             }}
           >
-            Mudar Dia da Consulta
+            Trocar Dia ou Horário
           </h2>
           <p
             style={{
-              fontSize: 'calc(16px * var(--font-scale))',
+              fontSize: 'calc(15px * var(--font-scale))',
               color: 'var(--text-muted)'
             }}
           >
-            Escolha uma nova data, o turno e o horário livre.
+            Selecione uma nova data para sua consulta.
           </p>
         </div>
 
@@ -240,10 +273,10 @@ export default function RescheduleModal({ isOpen, onClose, appointment, onResche
           </div>
         </div>
 
-        {/* Seletor com Mini Calendário Retrátil */}
-        <div style={{ marginTop: '6px' }}>
+        {/* 1. Escolha da Nova Data */}
+        <div>
           <label
-            htmlFor="reag-data"
+            htmlFor="reagend-data"
             style={{
               fontSize: 'calc(16px * var(--font-scale))',
               fontWeight: '800',
@@ -252,14 +285,14 @@ export default function RescheduleModal({ isOpen, onClose, appointment, onResche
               marginBottom: '6px'
             }}
           >
-            1. Escolha o Novo Dia *
+            1. Escolha a Nova Data *
           </label>
           <div
             style={{ position: 'relative', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
             onClick={() => setCalendarOpen((prev) => !prev)}
           >
             <input
-              id="reag-data"
+              id="reagend-data"
               type="text"
               value={selectedDate}
               readOnly
@@ -325,7 +358,7 @@ export default function RescheduleModal({ isOpen, onClose, appointment, onResche
           />
         </div>
 
-        {/* Chips de Horários com Turnos (os ocupados NÃO aparecem) */}
+        {/* Chips de Horários com Turnos */}
         {!statusBloqueio.bloqueado && (
           <div>
             <label
@@ -395,7 +428,7 @@ export default function RescheduleModal({ isOpen, onClose, appointment, onResche
               selected={selectedTime}
               onSelect={(time) => setSelectedTime(time)}
               occupiedTimes={occupiedTimes}
-              filterOccupied={true}
+              pastTimes={pastTimes}
             />
           </div>
         )}

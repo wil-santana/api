@@ -33,8 +33,9 @@ export default function RegisterModal({ isOpen, onClose, onOpenLogin }) {
     try {
       await registerUser({ nome, cpf, dataNascimento: nasc, telefone, senha });
       alert('✓ Cadastro Realizado com Sucesso!\nAgora você pode entrar e agendar suas consultas.');
-      onClose();
-      onOpenLogin();
+      if (onOpenLogin) {
+        onOpenLogin();
+      }
     } catch (err) {
       alert(`⚠️ Aviso: CPF inválido ou já cadastrado!\n${err.message || 'Já existe um paciente cadastrado com este CPF.'}\n\nPor favor, verifique os dados informados.`);
     } finally {
@@ -128,7 +129,7 @@ export default function RegisterModal({ isOpen, onClose, onOpenLogin }) {
               color: 'var(--text-muted)'
             }}
           >
-            Preencha seus dados para marcar suas consultas.
+            Preencha os campos com seus dados.
           </p>
         </div>
 
@@ -270,33 +271,6 @@ export default function RegisterModal({ isOpen, onClose, onOpenLogin }) {
             </Button>
           </div>
         </form>
-
-        <div
-          style={{
-            textAlign: 'center',
-            paddingTop: '8px',
-            fontSize: 'calc(14px * var(--font-scale))'
-          }}
-        >
-          Já tem conta cadastrada?{' '}
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onOpenLogin();
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#0F52BA',
-              fontWeight: '800',
-              cursor: 'pointer',
-              textDecoration: 'underline'
-            }}
-          >
-            Fazer Login
-          </button>
-        </div>
       </div>
     </div>
   );

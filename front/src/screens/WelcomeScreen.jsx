@@ -74,7 +74,7 @@ export default function WelcomeScreen({ onOpenLogin, onOpenRegister }) {
               lineHeight: 1.35
             }}
           >
-            Clínica geral, cardiologia, vista e mais de 25 especialidades.
+            Mais de 20 especialidades para você cuidar da sua saúde.
           </p>
         </div>
       </div>
