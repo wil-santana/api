@@ -18,4 +18,7 @@ public class Especialidade {
 
     @Column(nullable = false, unique = true)
     private String nome;
+
+    @Column (name="descricao")
+    private String descricao;
 }

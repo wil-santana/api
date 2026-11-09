@@ -59,6 +59,7 @@ export default function AdminScreen({ onLogout }) {
 
   // Forms de Nova Especialidade
   const [nomeNovaEspecialidade, setNomeNovaEspecialidade] = useState('');
+  const [descricaoNovaEspecialidade, setDescricaoNovaEspecialidade] = useState('');
 
   // Formulário de Médico
   const [formMedico, setFormMedico] = useState({
@@ -159,13 +160,18 @@ export default function AdminScreen({ onLogout }) {
   };
 
   // --- CRUD ESPECIALIDADES ---
+    // --- CRUD ESPECIALIDADES ---
   const handleCriarEspecialidade = async (e) => {
     e.preventDefault();
     if (!nomeNovaEspecialidade.trim()) return;
-    const nova = await criarEspecialidade({ nome: nomeNovaEspecialidade.trim() });
+    const nova = await criarEspecialidade({ 
+      nome: nomeNovaEspecialidade.trim(),
+      descricao: descricaoNovaEspecialidade.trim() 
+    });
     setEspecialidades((prev) => [...prev, nova]);
     setNomeNovaEspecialidade('');
-    alert(`✓ Especialidade "${nova.nome}" cadastrada com sucesso!`);
+    setDescricaoNovaEspecialidade('');
+    alert(`Especialidade "${nova.nome}" cadastrada com sucesso!`);
   };
 
   const handleDeletarEspecialidade = async (id, nome) => {
@@ -1488,7 +1494,23 @@ export default function AdminScreen({ onLogout }) {
                     outline: 'none'
                   }}
                 />
-
+                  <textarea
+  placeholder="Descrição da Especialidade (ex: Diagnóstico e tratamento de doenças do coração)"
+  value={descricaoNovaEspecialidade}
+  onChange={(e) => setDescricaoNovaEspecialidade(e.target.value)}
+  rows={3}
+  style={{
+    backgroundColor: '#0F172A',
+    color: '#FFFFFF',
+    border: '1px solid #334155',
+    borderRadius: '8px',
+    padding: '12px',
+    fontSize: '13px',
+    resize: 'vertical',
+    outline: 'none',
+    fontFamily: 'inherit'
+  }}
+/>
                 <button
                   type="submit"
                   style={{
@@ -1533,10 +1555,17 @@ export default function AdminScreen({ onLogout }) {
                       border: '1px solid #334155'
                     }}
                   >
-                    <div>
-                      <strong style={{ fontSize: '15px', color: '#FFFFFF' }}>{esp.nome}</strong>
-                      <div style={{ fontSize: '12px', color: '#94A3B8' }}>Código ID: #{esp.id}</div>
-                    </div>
+                     <div>
+                        <strong style={{ fontSize: '15px', color: '#FFFFFF' }}>{esp.nome}</strong>
+                          <div style={{ fontSize: '12px', color: '#94A3B8' }}>Código ID: #{esp.id}</div>
+  
+                          {/* EXIBIÇÃO DA DESCRIÇÃO ABAIXO DO NOME/ID: */}
+                           {esp.descricao && (
+                           <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#CBD5E1', fontStyle: 'italic' }}>
+                            {esp.descricao}
+                           </p>
+                           )}
+                          </div>
                     <button
                       type="button"
                       onClick={() => handleDeletarEspecialidade(esp.id, esp.nome)}

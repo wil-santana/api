@@ -40,6 +40,7 @@ public class EspecialidadeService {
         Especialidade especialidadeExistente = buscarPorId(id);
 
         especialidadeExistente.setNome(especialidadeAtualizada.getNome());
+        especialidadeExistente.setDescricao(especialidadeAtualizada.getDescricao());
 
         return especialidadeRepository.save(especialidadeExistente);
     }

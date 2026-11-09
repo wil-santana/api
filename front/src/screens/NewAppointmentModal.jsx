@@ -332,6 +332,56 @@ export default function NewAppointmentModal({ isOpen, onClose, pacienteId, onApp
               </option>
             ))}
           </select>
+
+          {/* Card Explicativo Contextual (Acessibilidade Sênior / WCAG) */}
+          {(() => {
+            const espSelecionada = especialidades.find(
+              (esp) => String(esp.id) === String(selectedEspecialidadeId)
+            );
+            if (!espSelecionada || !espSelecionada.descricao) return null;
+            return (
+              <div
+                style={{
+                  marginTop: "10px",
+                  padding: "12px 14px",
+                  backgroundColor: "var(--primary-light, #EBF3FF)",
+                  border: "1.5px solid #93C5FD",
+                  borderRadius: "10px",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px"
+                }}
+              >
+                <span style={{ fontSize: "20px", lineHeight: "1.2" }} role="img" aria-label="Informação">
+                  💡
+                </span>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "calc(13px * var(--font-scale))",
+                      fontWeight: "800",
+                      color: "var(--primary, #0F52BA)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.4px",
+                      marginBottom: "3px"
+                    }}
+                  >
+                  
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "calc(14px * var(--font-scale))",
+                      color: "var(--text-main, #0F172A)",
+                      lineHeight: "1.45",
+                      fontWeight: "600"
+                    }}
+                  >
+                    {espSelecionada.descricao}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* 2. Escolha do Médico */}

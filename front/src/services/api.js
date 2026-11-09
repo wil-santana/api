@@ -505,18 +505,18 @@ export async function listarEspecialidades() {
   ];
 }
 
-export async function criarEspecialidade({ nome }) {
+export async function criarEspecialidade({ nome, descricao }) { 
   try {
     const response = await fetch(`${API_BASE_URL}/especialidade`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome })
+      body: JSON.stringify({ nome, descricao })
     });
     if (response.ok) return await response.json();
   } catch (error) {
     console.warn('Erro ao criar especialidade no backend:', error);
   }
-  return { id: Date.now(), nome };
+  return { id: Date.now(), nome, descricao }; 
 }
 
 export async function deletarEspecialidade(id) {
