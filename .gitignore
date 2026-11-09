@@ -1,0 +1,54 @@
+# =============================================================================
+# GitIgnore - ConsultaFacil (Monorepo: Spring Boot + React Vite)
+# =============================================================================
+
+# --- Segredos e Variaveis de Ambiente ---
+.env
+*.env
+.env.*
+application-local.properties
+
+# --- Node.js / Frontend (React + Vite) ---
+front/node_modules/
+node_modules/
+front/dist/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- Java / Backend (Spring Boot + Maven) ---
+HELP.md
+api/HELP.md
+api/target/
+target/
+api/.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# --- Configuracoes de IDEs e Editores ---
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+.springBeans
+.sts4-cache
+.apt_generated
+/nbproject/private/
+/nbbuild/
+/.nb-gradle/
+
+# --- Ferramentas e Assistentes IA ---
+.ai/
+.agents/
+.gemini/
+
+# --- Arquivos de Sistema Operacional ---
+.DS_Store
+Thumbs.db
+desktop.ini
